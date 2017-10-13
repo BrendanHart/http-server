@@ -1,9 +1,10 @@
 #include <stdio.h>
-
 #include <sys/types.h>
-#include <sys.socket.h>
+#include <sys/socket.h>
 
 #include <assert.h>
+
+#include "make_printable_address.h";
 
 int handle_listen_socket(int socket_fd) {
 
@@ -14,7 +15,14 @@ int handle_listen_socket(int socket_fd) {
 
     while((client = accept(socket_fd, (struct sockaddr *) &client_addr, &client_addr_len) >= 0) {
 
-        client_socket = accept(socket_fd, (struct sockaddr *) &client_addr, &client_addr_len);
+        char* printable_address = make_printable_address(&client_addr,
+                                                         client_addr_len,
+                                                         buffer,
+                                                         sizeof(buffer));
+
+        service_client_socket(client, printable_address);
+
+        free(printable_address);
 
     }
 
