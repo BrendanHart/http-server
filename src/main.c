@@ -8,7 +8,7 @@
 
 int main(int argc, char **argv) {
 
-    int port;
+    int socket_fd, port;
     char *endp, *program_name;
 
     assert(argv[0] && *argv[0]);

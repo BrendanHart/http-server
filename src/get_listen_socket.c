@@ -18,6 +18,9 @@ int get_listen_socket(int port) {
         return -1;
     }
 
+    int option = 1;
+    setsockopt(socket_fd, SOL_SOCKET, SO_REUSEADDR, &option, sizeof(option));
+
     if(bind(socket_fd, (struct sockaddr *) &address, sizeof(address)) != 0) {
         perror("bind");
         return -1;
