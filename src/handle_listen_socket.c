@@ -45,7 +45,6 @@ int handle_listen_socket(int socket_fd) {
 
         int number;
         if((number = accept(socket_fd, (struct sockaddr *) &tcb_p->client_address, &(tcb_p->client_address_size))) >= 0) {
-            printf("NUMBER: %d\n", number);
             tcb_p->client = number;
             pthread_t thread;
             if(pthread_create(&thread, 0, setup_client_thread, (void *) tcb_p) != 0) {
