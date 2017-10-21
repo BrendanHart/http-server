@@ -54,7 +54,15 @@ static int process_http_header_line(char* buffer, size_t length, http_header *he
     return 0;
 }
 
-
+static http_header* new_header() {
+    http_header* header = malloc(sizeof(http_header));
+    header->resource = NULL;
+    header->version = NULL;
+    header->method = UNSUPPORTED;
+    header->user_agent = NULL;
+    header->status = -1;
+    return header;
+}
 
 
 int service_client_socket(const int client_socket, const char *const printable_address) {
@@ -66,13 +74,13 @@ int service_client_socket(const int client_socket, const char *const printable_a
 
     printf("%s: Connected.\n", printable_address);
     
-    http_header header;
+    http_header *header = new_header();
     while((bytes_read = read(client_socket, &buffer[last_index], 1)) == 1) {
 
         if(buffer[last_index] == '\n') {
             buffer[last_index-1] = '\0';
 
-            process_http_header_line(buffer, last_index, &header);
+            process_http_header_line(buffer, last_index, header);
 
             // Test that headers are finished here, for now just read
             // the first line.
@@ -80,7 +88,7 @@ int service_client_socket(const int client_socket, const char *const printable_a
 
             if(headers_finished) {
 
-                int success = send_http_response(client_socket, "/home/brendan/work/http-server/www", &header);
+                int success = send_http_response(client_socket, "/home/brendan/work/http-server/www", header);
                 if(success == -1)
                     printf("%s: Error sending http response.", printable_address);
                 break;
@@ -98,6 +106,9 @@ int service_client_socket(const int client_socket, const char *const printable_a
 
     }
 
+    free(header->version);
+    free(header->resource);
+    free(header);
     printf("%s: Disconnected.\n", printable_address);
 
     shutdown(client_socket, 2);

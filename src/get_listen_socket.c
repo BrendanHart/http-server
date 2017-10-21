@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -7,6 +8,7 @@
 int get_listen_socket(int port) {
 
     struct sockaddr_in6 address;
+    bzero((char *) &address, sizeof(address));
     address.sin6_family = AF_INET6;
     address.sin6_addr = in6addr_any;
     address.sin6_port = htons(port);
