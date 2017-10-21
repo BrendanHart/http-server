@@ -7,14 +7,6 @@
 #include "http_header.h"
 #include "send_http_response.h"
 
-
-//static int send_all(const int client_socket, char* buffer, size_t size) {
-//    while(size > 0) { 
-//        size -= write(client_socket, buffer, size);
-//    }
-//    return size;
-//}
-
 static int process_http_header_line(char* buffer, size_t length, http_header *header) {
     header->status = 200;
     if(header->resource == NULL) {
