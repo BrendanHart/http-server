@@ -4,18 +4,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define MAX_LINE_SIZE 1024
+#include "http_header.h"
+#include "send_http_response.h"
 
-enum request_method {
-    POST, GET, HEAD, UNSUPPORTED
-};
-
-typedef struct http_header {
-    enum request_method method;
-    char* user_agent;
-    char* resource;
-    int status;
-} http_header;
 
 //static int send_all(const int client_socket, char* buffer, size_t size) {
 //    while(size > 0) { 
@@ -25,6 +16,7 @@ typedef struct http_header {
 //}
 
 static int process_http_header_line(char* buffer, size_t length, http_header *header) {
+    header->status = 200;
     if(header->resource == NULL) {
         // No resource in header struct, so this must be the first line.
         // Check for method
@@ -32,8 +24,6 @@ static int process_http_header_line(char* buffer, size_t length, http_header *he
             header->method = GET;
         } else if(length >= 4 && strncmp(buffer, "HEAD ", 4) == 0) {
             header->method = HEAD;
-        } else if(length >= 5 && strncmp(buffer, "POST ", 5) == 0) {
-            header->method = POST;
         } else {
             header->method = UNSUPPORTED;
             return -1;
@@ -58,23 +48,29 @@ static int process_http_header_line(char* buffer, size_t length, http_header *he
         }
 
         header->resource = calloc(strlen(resource) + 1, sizeof(char));
+        header->version = calloc(strlen(version) + 1, sizeof(char));
         strcpy(header->resource, resource);
+        strcpy(header->version, version);
     } else {
 
+        printf("%s\n", buffer);
         // We've already processed the resource line here.
         // What we have to process now is the rest of the headers.
-        
 
     }
 
     return 0;
 }
 
+
+
+
 int service_client_socket(const int client_socket, const char *const printable_address) {
 
     char buffer[MAX_LINE_SIZE];
     size_t bytes_read;
     size_t last_index = 0;
+    int headers_finished = 0;
 
     printf("%s: Connected.\n", printable_address);
     
@@ -83,31 +79,20 @@ int service_client_socket(const int client_socket, const char *const printable_a
 
         if(buffer[last_index] == '\n') {
             buffer[last_index-1] = '\0';
+
             process_http_header_line(buffer, last_index, &header);
 
-            char full_url[MAX_LINE_SIZE];
-            strcpy(full_url, "/home/students/bxh538/work/http-server/www");
-            strcat(full_url, header.resource);
+            // Test that headers are finished here, for now just read
+            // the first line.
+            headers_finished = 1;
 
-            FILE *fp = fopen(full_url, "r");
-            fseek(fp, 0L, SEEK_END);
-            size_t sz = ftell(fp);
-            rewind(fp);
-            printf("SIZE: %d\n", (int)sz);
-            write(client_socket, "HTTP/1.1 200 OK\r\n", strlen("HTTP/1.1 200 OK\r\n"));
-            write(client_socket, "Content-Type: text/html\r\n", 25);
-            write(client_socket, "\r\n", 2);
-            int count = 1;
-            char c;
-            do {
-                c = (char)fgetc(fp);
-                printf("char: %x\n", c);
-                write(client_socket, &c, 1);
-                count += 1;
-            }while(count < sz);
+            if(headers_finished) {
 
-            write(client_socket, "\r\n", 2);
-            break;
+                int success = send_http_response(client_socket, "/home/brendan/work/http-server/www", &header);
+                if(success == -1)
+                    printf("%s: Error sending http response.", printable_address);
+                break;
+            }
 
             last_index = 0;
         } else {
