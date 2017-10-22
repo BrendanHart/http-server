@@ -3,6 +3,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <pthread.h>
+#include <string.h>
 
 #include <assert.h>
 
@@ -51,9 +52,14 @@ int handle_listen_socket(int socket_fd) {
                 perror("pthread_create");
                 return -1;
             }
+            int error = pthread_detach(thread);
+            if(error != 0) {
+                fprintf(stderr, "pthread_detach failed: %s\n", strerror(error));
+            }
         } else {
             perror("accept");
         }
+        printf("outside %p\n", tcb_p);
 
     }
 

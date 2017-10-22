@@ -9,6 +9,7 @@
 
 static int process_http_header_line(char* buffer, size_t length, http_header *header) {
     header->status = 200;
+
     if(header->resource == NULL) {
         // No resource in header struct, so this must be the first line.
         // Check for method
@@ -18,7 +19,6 @@ static int process_http_header_line(char* buffer, size_t length, http_header *he
             header->method = HEAD;
         } else {
             header->method = UNSUPPORTED;
-            return -1;
         }
 
         char *version, *resource;
@@ -45,7 +45,6 @@ static int process_http_header_line(char* buffer, size_t length, http_header *he
         strcpy(header->version, version);
     } else {
 
-        printf("%s\n", buffer);
         // We've already processed the resource line here.
         // What we have to process now is the rest of the headers.
 
@@ -64,47 +63,56 @@ static http_header* new_header() {
     return header;
 }
 
-
-int service_client_socket(const int client_socket, const char *const printable_address) {
-
-    char buffer[MAX_LINE_SIZE];
+static int read_header_lines(const int client_socket, http_header *header) {
     size_t bytes_read;
     size_t last_index = 0;
-    int headers_finished = 0;
+    char buffer[MAX_LINE_SIZE];
+    int recent_crlf = 0;
 
-    printf("%s: Connected.\n", printable_address);
-    
-    http_header *header = new_header();
     while((bytes_read = read(client_socket, &buffer[last_index], 1)) == 1) {
-
-        if(buffer[last_index] == '\n') {
+        
+        if(last_index > 0 && buffer[last_index-1] == '\r' && buffer[last_index] == '\n') {
+            if(recent_crlf == 1)
+                return 0;
             buffer[last_index-1] = '\0';
-
             process_http_header_line(buffer, last_index, header);
-
-            // Test that headers are finished here, for now just read
-            // the first line.
-            headers_finished = 1;
-
-            if(headers_finished) {
-
-                int success = send_http_response(client_socket, "/home/brendan/work/http-server/www", header);
-                if(success == -1)
-                    printf("%s: Error sending http response.", printable_address);
-                break;
-            }
-
+            buffer[last_index-1] = '\r';
+            recent_crlf = 1;
             last_index = 0;
         } else {
             last_index++;
             if(last_index >= MAX_LINE_SIZE) {
                 fprintf(stderr, "Length of line in header too long.");
+                printf("ERROR\n");
                 return -1;
             }
-
         }
 
+        if(last_index > 1)
+            recent_crlf = 0;
+
     }
+    return -1;
+
+}
+
+
+int service_client_socket(const int client_socket, const char *const printable_address) {
+
+    int success;
+
+    printf("%s: Connected.\n", printable_address);
+    
+    http_header *header = new_header();
+
+    success = read_header_lines(client_socket, header);
+    if(success != 0) {
+        // Malformed request?
+    }
+
+    success = send_http_response(client_socket, "/home/brendan/work/http-server/www", header);
+    if(success != 0)
+        printf("%s: Error sending http response.", printable_address);
 
     free(header->version);
     free(header->resource);

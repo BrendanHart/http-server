@@ -19,6 +19,7 @@ static int read_local_file(const char* root_dir, const char* file, char** buffer
 
     FILE *fp = fopen(full_url, "r");
 
+
     *size = 0;
 
     if(fp == NULL) {
@@ -56,7 +57,17 @@ static void send_local_file(const int client_socket, char *buffer, const size_t 
     send_all(client_socket, buffer, size);
 }
 
-static void send_response_header(const int client_socket, http_header *header, const size_t content_size) {
+static int send_response_header(const int client_socket, http_header *header, const size_t content_size) {
+
+    send_all(client_socket, header->version, strlen(header->version));
+
+    if(header->method == UNSUPPORTED) {
+        send_all(client_socket, " 405 Method Not Allowed\r\n", strlen(" 405 Method Not Allowed\r\n"));
+        send_all(client_socket, "Allowed: GET, HEAD\r\n", strlen("Allowed: GET, HEAD\r\n"));
+        send_all(client_socket, "\r\n", 2);
+        return 0;
+    }
+
     char size_str[256];
     snprintf(size_str, sizeof(size_str), "%zu", content_size);
 
@@ -81,7 +92,6 @@ static void send_response_header(const int client_socket, http_header *header, c
         strcat(content_type, ";charset=utf-8");
     }
 
-    send_all(client_socket, header->version, strlen(header->version));
     if(header->status == 200) {
         send_all(client_socket, " 200 OK\r\n", strlen(" 200 OK\r\n"));
         send_all(client_socket, content_type, strlen(content_type));
@@ -96,6 +106,7 @@ static void send_response_header(const int client_socket, http_header *header, c
         send_all(client_socket, "\r\n", 2);
     }
     send_all(client_socket, "\r\n", 2);
+    return 1;
 }
 
 
@@ -113,9 +124,10 @@ int send_http_response(const int client_socket,
         size_read = 13;
     }
 
-    send_response_header(client_socket, header, size_read);
 
-    if(header->method != HEAD) {
+    int send_body = send_response_header(client_socket, header, size_read);
+
+    if(send_body == 1) {
         send_local_file(client_socket, source, size_read);
     }
 
