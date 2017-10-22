@@ -59,7 +59,6 @@ int handle_listen_socket(int socket_fd) {
         } else {
             perror("accept");
         }
-        printf("outside %p\n", tcb_p);
 
     }
 
