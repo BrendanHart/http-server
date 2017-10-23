@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <signal.h>
 
 #include <assert.h>
 
@@ -53,6 +54,8 @@ int main(int argc, char **argv) {
         fprintf(stderr, "%s: error getting listen socket.", program_name);
         exit(1);
     }
+
+    signal(SIGPIPE, SIG_IGN);
 
     if(handle_listen_socket(socket_fd) != 0) {
         fprintf(stderr, "%s: error processing listen socket.", program_name);

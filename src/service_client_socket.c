@@ -26,23 +26,36 @@ static int process_http_header_line(char* buffer, size_t length, http_header *he
         resource = strtok(NULL, " ");
         version = strtok(NULL, " ");
 
+
         // Malformed HTTP request
-        if(version == NULL || resource == NULL) {
+        if(resource == NULL) {
             header->status = 400;
+            return -1;
+        } else {
+            if(strcmp(resource, "/") == 0) {
+                resource = "/index.html";
+            }
+            header->resource = calloc(strlen(resource) + 1, sizeof(char));
+            strcpy(header->resource, resource);
+        }
+
+        if(version == NULL) {
+            header->status = 400;
+            header->version = calloc(strlen("HTTP/1.1") + 1, sizeof(char));
+            strcpy(header->version, "HTTP/1.1");
             return -1;
         } else if(strcmp(version, "HTTP/1.1") != 0 && strcmp(version, "HTTP/1.0") != 0) {
             header->status = 505;
+            header->version = calloc(strlen("HTTP/1.1") + 1, sizeof(char));
+            strcpy(header->version, "HTTP/1.1");
             return -1;
-        } 
-
-        if(strcmp(resource, "/") == 0) {
-            resource = "/index.html";
+        } else {
+            header->version = calloc(strlen(version) + 1, sizeof(char));
+            strcpy(header->version, version);
         }
 
-        header->resource = calloc(strlen(resource) + 1, sizeof(char));
-        header->version = calloc(strlen(version) + 1, sizeof(char));
-        strcpy(header->resource, resource);
-        strcpy(header->version, version);
+
+
     } else {
 
         // We've already processed the resource line here.
@@ -107,8 +120,11 @@ int service_client_socket(const int client_socket, const char *const printable_a
 
     success = read_header_lines(client_socket, header);
     if(success != 0) {
-        // Malformed request?
-    }
+        header->status = 400;
+        header->version = calloc(strlen("HTTP/1.1") + 1, sizeof(char));
+        strcpy(header->version, "HTTP/1.1");
+    } else if(header->method == UNSUPPORTED)
+        header->status = 501;
 
     success = send_http_response(client_socket, "/home/brendan/work/http-server/www", header);
     if(success != 0)
@@ -119,7 +135,7 @@ int service_client_socket(const int client_socket, const char *const printable_a
     free(header);
     printf("%s: Disconnected.\n", printable_address);
 
-    shutdown(client_socket, 2);
+    //shutdown(client_socket, 2);
     close(client_socket);
 
     return 0;
