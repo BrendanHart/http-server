@@ -15,6 +15,7 @@ typedef struct thread_control_block {
     int client;
     struct sockaddr_in6 client_address;
     socklen_t client_address_size;
+    const char *root_dir;
 } thread_control_block_t;
 
 static void * setup_client_thread(void *data) {
@@ -28,13 +29,13 @@ static void * setup_client_thread(void *data) {
                                     tcb_p->client_address_size,
                                     buffer,
                                     sizeof(buffer));
-    service_client_socket(tcb_p->client, printable_address);
+    service_client_socket(tcb_p->client, printable_address, tcb_p->root_dir);
     free(printable_address);
     free(data);
     pthread_exit(0);
 }
 
-int handle_listen_socket(int socket_fd) {
+int handle_listen_socket(int socket_fd, const char *root_dir) {
 
     while(1) {
         thread_control_block_t *tcb_p = malloc(sizeof(thread_control_block_t));
@@ -47,6 +48,7 @@ int handle_listen_socket(int socket_fd) {
         int number;
         if((number = accept(socket_fd, (struct sockaddr *) &tcb_p->client_address, &(tcb_p->client_address_size))) >= 0) {
             tcb_p->client = number;
+            tcb_p->root_dir = root_dir;
             pthread_t thread;
             if(pthread_create(&thread, 0, setup_client_thread, (void *) tcb_p) != 0) {
                 perror("pthread_create");

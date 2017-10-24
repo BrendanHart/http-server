@@ -110,7 +110,7 @@ static int read_header_lines(const int client_socket, http_header *header) {
 }
 
 
-int service_client_socket(const int client_socket, const char *const printable_address) {
+int service_client_socket(const int client_socket, const char *const printable_address, const char *root_dir) {
 
     int success;
 
@@ -126,7 +126,7 @@ int service_client_socket(const int client_socket, const char *const printable_a
     } else if(header->method == UNSUPPORTED)
         header->status = 501;
 
-    success = send_http_response(client_socket, "/home/brendan/work/http-server/www", header);
+    success = send_http_response(client_socket, root_dir, header);
     if(success != 0)
         printf("%s: Error sending http response.", printable_address);
 

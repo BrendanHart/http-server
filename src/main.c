@@ -8,12 +8,10 @@
 #include "get_listen_socket.h"
 #include "handle_listen_socket.h"
 
-char *ROOT_DIR;
-
 int main(int argc, char **argv) {
 
     int socket_fd, port;
-    char *endp, *program_name;
+    char *endp, *program_name, *root_dir;
 
     assert(argv[0] && *argv[0]);
     program_name = argv[0];
@@ -38,7 +36,7 @@ int main(int argc, char **argv) {
                     exit(1);
                 }
             } else if(strcmp(argv[i-1], "-d") == 0) {
-                ROOT_DIR = argv[i];
+                root_dir = argv[i];
             }
 
         }
@@ -57,7 +55,7 @@ int main(int argc, char **argv) {
 
     signal(SIGPIPE, SIG_IGN);
 
-    if(handle_listen_socket(socket_fd) != 0) {
+    if(handle_listen_socket(socket_fd, root_dir) != 0) {
         fprintf(stderr, "%s: error processing listen socket.", program_name);
         exit(1);
     }

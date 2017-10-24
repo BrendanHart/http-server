@@ -24,6 +24,7 @@ static int read_local_file(const char* root_dir, const char* file, char** buffer
     strcpy(full_url, root_dir);
     strcat(full_url, file);
 
+
     FILE *fp = fopen(full_url, "r");
 
     *size = 0;
@@ -145,6 +146,7 @@ int send_http_response(const int client_socket,
     char *source;
     size_t size_read = 0;
     int result = read_local_file(root_dir, header->resource, &source, &size_read);
+
 
     if(result == -1) {
         source = NULL;
