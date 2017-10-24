@@ -13,9 +13,9 @@ static int process_http_header_line(char* buffer, size_t length, http_header *he
     if(header->resource == NULL) {
         // No resource in header struct, so this must be the first line.
         // Check for method
-        if(length >= 4 && strncmp(buffer, "GET ", 4) == 0) {
+        if(length >= 3 && strncmp(buffer, "GET", 3) == 0) {
             header->method = GET;
-        } else if(length >= 4 && strncmp(buffer, "HEAD ", 4) == 0) {
+        } else if(length >= 4 && strncmp(buffer, "HEAD", 4) == 0) {
             header->method = HEAD;
         } else {
             header->method = UNSUPPORTED;
@@ -32,9 +32,12 @@ static int process_http_header_line(char* buffer, size_t length, http_header *he
             header->status = 400;
             return -1;
         } else {
-            if(strcmp(resource, "/") == 0) {
+            if(strstr(resource, "../") != NULL) {
+                header->status = 403;
+                return -1;
+            } else if(strcmp(resource, "/") == 0) {
                 resource = "/index.html";
-            }
+            } 
             header->resource = calloc(strlen(resource) + 1, sizeof(char));
             strcpy(header->resource, resource);
         }

@@ -55,13 +55,20 @@ static int read_local_file(const char* root_dir, const char* file, char** buffer
 
 }
 
-static void send_local_file(const int client_socket, char *buffer, const size_t size) {
-    if(buffer == NULL) {
+static void send_local_file(const int client_socket, char *buffer, const size_t size, http_header *header) {
+    if(header->status == 404) {
         send_all(client_socket, "404 NOT FOUND", 13);
-        return;
+    } else if(header->status == 200) { 
+        send_all(client_socket, buffer, size);
+    } else if(header->status == 501) {
+        send_all(client_socket, "501 NOT IMPLEMENTED", 19);
+    } else if(header->status == 505) {
+        send_all(client_socket, "505 BAD VERSION", 15);
+    } else if(header->status == 400) {
+        send_all(client_socket, "400 BAD REQUEST", 15);
+    } else if(header->status == 403) {
+        send_all(client_socket, "403 FORBIDDEN", 13);
     }
-
-    send_all(client_socket, buffer, size);
 }
 
 static int send_response_header(const int client_socket, http_header *header, const size_t content_size) {
@@ -99,9 +106,17 @@ static int send_response_header(const int client_socket, http_header *header, co
 
     char * bad_version = " 505 HTTP Version Not Supported";
     char * not_implemented = " 501 Not Implemented";
+    char * bad_request = " 400 Bad Request";
+    char * forbidden = " 403 Forbidden";
 
     if(header->status == 400) {
-        if(send_all(client_socket, " 400 Bad Request", strlen(" 400 Bad Request")) < 0
+        if(send_all(client_socket, bad_request, strlen(bad_request)) < 0
+        || send_all(client_socket, "\r\n", 2) < 0
+        || send_all(client_socket, "\r\n", 2) < 0)
+            return -1;
+        return 0;
+    } else if(header->status == 403) {
+        if(send_all(client_socket, forbidden, strlen(forbidden)) < 0
         || send_all(client_socket, "\r\n", 2) < 0
         || send_all(client_socket, "\r\n", 2) < 0)
             return -1;
@@ -159,7 +174,7 @@ int send_http_response(const int client_socket,
     int send_body = send_response_header(client_socket, header, size_read);
 
     if(send_body == 1) {
-        send_local_file(client_socket, source, size_read);
+        send_local_file(client_socket, source, size_read, header);
     }
 
     free(source);
