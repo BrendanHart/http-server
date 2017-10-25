@@ -3,6 +3,10 @@
 #include <stdlib.h>
 #include <signal.h>
 
+#include <openssl/bio.h>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+
 #include <assert.h>
 
 #include "get_listen_socket.h"
@@ -47,6 +51,11 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
+    OpenSSL_add_all_algorithms();
+    SSL_load_error_strings();
+    ERR_load_BIO_strings();
+    SSL_library_init();
+
     socket_fd = get_listen_socket(port);
     if(socket_fd < 0) {
         fprintf(stderr, "%s: error getting listen socket.", program_name);
@@ -60,6 +69,10 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
+    ERR_free_strings();
+    EVP_cleanup();
+
     return 0;
 
 }
+

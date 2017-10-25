@@ -3,11 +3,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <openssl/err.h>
 
 #include "http_header.h"
 #include "send_http_response.h"
+#include "service_client_socket.h"
 
 static int process_http_header_line(char* buffer, size_t length, http_header *header) {
+    printf("%s\n", buffer);
     header->status = 200;
 
     if(header->resource == NULL) {
@@ -79,13 +82,13 @@ static http_header* new_header() {
     return header;
 }
 
-static int read_header_lines(const int client_socket, http_header *header) {
+static int read_header_lines(SSL* ssl, http_header *header) {
     size_t bytes_read;
     size_t last_index = 0;
     char buffer[MAX_LINE_SIZE];
     int recent_crlf = 0;
 
-    while((bytes_read = read(client_socket, &buffer[last_index], 1)) == 1) {
+    while((bytes_read = SSL_read(ssl, &buffer[last_index], 1)) == 1) {
         
         if(last_index > 0 && buffer[last_index-1] == '\r' && buffer[last_index] == '\n') {
             if(recent_crlf == 1)
@@ -112,34 +115,37 @@ static int read_header_lines(const int client_socket, http_header *header) {
 
 }
 
-
-int service_client_socket(const int client_socket, const char *const printable_address, const char *root_dir) {
+int service_client_socket(SSL* ssl, const char *const printable_address, const char *root_dir) {
 
     int success;
 
     printf("%s: Connected.\n", printable_address);
-    
-    http_header *header = new_header();
+    printf("SSL: %p\n", ssl);
+    if(SSL_accept(ssl) == -1) {
+        ERR_print_errors_fp(stderr);
+    } else {
+        http_header *header = new_header();
 
-    success = read_header_lines(client_socket, header);
-    if(success != 0) {
-        header->status = 400;
-        header->version = calloc(strlen("HTTP/1.1") + 1, sizeof(char));
-        strcpy(header->version, "HTTP/1.1");
-    } else if(header->method == UNSUPPORTED)
-        header->status = 501;
+        success = read_header_lines(ssl, header);
+        if(success != 0) {
+            header->status = 400;
+            header->version = calloc(strlen("HTTP/1.1") + 1, sizeof(char));
+            strcpy(header->version, "HTTP/1.1");
+        } else if(header->method == UNSUPPORTED)
+            header->status = 501;
 
-    success = send_http_response(client_socket, root_dir, header);
-    if(success != 0)
-        printf("%s: Error sending http response.", printable_address);
+        success = send_http_response(ssl, root_dir, header);
+        if(success != 0)
+            printf("%s: Error sending http response.", printable_address);
 
-    free(header->version);
-    free(header->resource);
-    free(header);
-    printf("%s: Disconnected.\n", printable_address);
+        free(header->version);
+        free(header->resource);
+        free(header);
+        printf("%s: Disconnected.\n", printable_address);
+    }
 
     //shutdown(client_socket, 2);
-    close(client_socket);
+    SSL_free(ssl);
 
     return 0;
 
