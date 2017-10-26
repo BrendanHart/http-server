@@ -36,16 +36,16 @@ SSL_CTX *create_context() {
 }
 
 void configure_context(SSL_CTX *ctx) {
-    SSL_CTX_set_ecdh_auto(ctx, 1);
+    //SSL_CTX_set_ecdh_auto(ctx, 1);
 
     printf("%p %p\n",
-        fopen("/home/students/bxh538/work/http-server/cert.pem", "r"),
-        fopen("/home/students/bxh538/work/http-server/key.pem", "r"));
-    if(SSL_CTX_use_certificate_file(ctx, "/home/students/bxh538/work/http-server/cert.pem", SSL_FILETYPE_PEM) <= 0) {
+        fopen("./cert.pem", "r"),
+        fopen("./key.pem", "r"));
+    if(SSL_CTX_use_certificate_file(ctx, "./cert.pem", SSL_FILETYPE_PEM) <= 0) {
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
-    if(SSL_CTX_use_PrivateKey_file(ctx, "/home/students/bxh538/work/http-server/key.pem", SSL_FILETYPE_PEM) <= 0) {
+    if(SSL_CTX_use_PrivateKey_file(ctx, "./key.pem", SSL_FILETYPE_PEM) <= 0) {
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
