@@ -23,6 +23,7 @@ typedef struct thread_control_block {
 } thread_control_block_t;
 
 SSL_CTX *create_context() {
+    // Create and return the SSL context
     const SSL_METHOD *method;
     SSL_CTX *ctx;
     method = SSLv23_server_method();
@@ -36,11 +37,7 @@ SSL_CTX *create_context() {
 }
 
 void configure_context(SSL_CTX *ctx) {
-    //SSL_CTX_set_ecdh_auto(ctx, 1);
-
-    printf("%p %p\n",
-        fopen("./cert.pem", "r"),
-        fopen("./key.pem", "r"));
+    // Configure the context using the cert.pem and key.pem files
     if(SSL_CTX_use_certificate_file(ctx, "./cert.pem", SSL_FILETYPE_PEM) <= 0) {
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
@@ -58,15 +55,21 @@ static void * setup_client_thread(void *data) {
 
     char buffer[INET6_ADDRSTRLEN + 32];
     char *printable_address;
+
+    // Make the address nice for printing (format: IP port PORT)
     printable_address = make_printable_address(&(tcb_p->client_address),
                                     tcb_p->client_address_size,
                                     buffer,
                                     sizeof(buffer));
+    // Create an SSL socket from the original socket
     SSL *ssl;
     ssl = SSL_new(tcb_p->ctx);
     SSL_set_fd(ssl, tcb_p->client);
 
+    // Handle the client
     service_client_socket(ssl, printable_address, tcb_p->root_dir);
+
+    // Free any data and exit thread
     close(tcb_p->client);
     free(printable_address);
     free(data);
@@ -75,10 +78,14 @@ static void * setup_client_thread(void *data) {
 
 int handle_listen_socket(int socket_fd, const char *root_dir) {
 
+    // Setup the SSL context
     SSL_CTX *ctx;
     ctx = create_context();
     configure_context(ctx);
 
+    printf("Server is now listening...\n");
+
+    // Constantly listen for connections
     while(1) {
         thread_control_block_t *tcb_p = malloc(sizeof(thread_control_block_t));
         if(tcb_p == 0) {
@@ -90,6 +97,7 @@ int handle_listen_socket(int socket_fd, const char *root_dir) {
 
         int number;
         if((number = accept(socket_fd, (struct sockaddr *) &tcb_p->client_address, &(tcb_p->client_address_size))) >= 0) {
+            // We have a connection, so create a new thread to handle the connection
             tcb_p->client = number;
             tcb_p->root_dir = root_dir;
             pthread_t thread;
@@ -106,5 +114,7 @@ int handle_listen_socket(int socket_fd, const char *root_dir) {
         }
 
     }
+
+    printf("Server is closing...\n");
 
 }
