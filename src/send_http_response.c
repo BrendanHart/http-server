@@ -56,23 +56,7 @@ static int read_local_file(const char* root_dir, const char* file, char** buffer
 
 }
 
-static void send_local_file(SSL* ssl, char *buffer, const size_t size, http_header *header) {
-    if(header->status == 404) {
-        send_all(ssl, "404 NOT FOUND", 13);
-    } else if(header->status == 200) { 
-        send_all(ssl, buffer, size);
-    } else if(header->status == 501) {
-        send_all(ssl, "501 NOT IMPLEMENTED", 19);
-    } else if(header->status == 505) {
-        send_all(ssl, "505 BAD VERSION", 15);
-    } else if(header->status == 400) {
-        send_all(ssl, "400 BAD REQUEST", 15);
-    } else if(header->status == 403) {
-        send_all(ssl, "403 FORBIDDEN", 13);
-    }
-}
-
-static int send_response_header(SSL* ssl, http_header *header, const size_t content_size) {
+static char* send_response_header(SSL* ssl, http_header *header, const size_t content_size) {
 
     char size_str[256];
     snprintf(size_str, sizeof(size_str), "%zu", content_size);
@@ -111,47 +95,42 @@ static int send_response_header(SSL* ssl, http_header *header, const size_t cont
     char * forbidden = " 403 Forbidden";
 
     if(header->status == 400) {
-        if(send_all(ssl, bad_request, strlen(bad_request)) < 0
-        || send_all(ssl, "\r\n", 2) < 0
-        || send_all(ssl, "\r\n", 2) < 0)
-            return -1;
-        return 0;
+        send_all(ssl, bad_request, strlen(bad_request));
+        send_all(ssl, "\r\n", 2);
+        send_all(ssl, "\r\n", 2);
+        return "400 Bad Request";
     } else if(header->status == 403) {
-        if(send_all(ssl, forbidden, strlen(forbidden)) < 0
-        || send_all(ssl, "\r\n", 2) < 0
-        || send_all(ssl, "\r\n", 2) < 0)
-            return -1;
-        return 0;
+        send_all(ssl, forbidden, strlen(forbidden));
+        send_all(ssl, "\r\n", 2);
+        send_all(ssl, "\r\n", 2);
+        return "403 Forbidden";
     } else if(header->status == 505) {
-        if(send_all(ssl, bad_version, strlen(bad_version)) < 0
-        || send_all(ssl, "\r\n", 2) < 0
-        || send_all(ssl, "\r\n", 2) < 0)
-            return -1;
-        return 0;
+        send_all(ssl, bad_version, strlen(bad_version));
+        send_all(ssl, "\r\n", 2);
+        send_all(ssl, "\r\n", 2);
+        return "505 HTTP Version Not Supported";
     } if(header->status == 200) {
-        if(send_all(ssl, " 200 OK\r\n", strlen(" 200 OK\r\n")) < 0
-        || send_all(ssl, content_type, strlen(content_type)) < 0
-        || send_all(ssl, "\r\n", 2) < 0
-        || send_all(ssl, "Content-Length: ", 16) < 0
-        || send_all(ssl, size_str, strlen(size_str)) < 0
-        || send_all(ssl, "\r\n", 2) < 0
-        || send_all(ssl, "\r\n", 2) < 0)
-            return -1;
+        send_all(ssl, " 200 OK\r\n", strlen(" 200 OK\r\n"));
+        send_all(ssl, content_type, strlen(content_type));
+        send_all(ssl, "\r\n", 2);
+        send_all(ssl, "Content-Length: ", 16);
+        send_all(ssl, size_str, strlen(size_str));
+        send_all(ssl, "\r\n", 2);
+        send_all(ssl, "\r\n", 2);
     } else if (header->status == 404) {
         strcpy(content_type, "Content-Type: text/html;charset=utf-8");
-        if(send_all(ssl, " 404 NOT FOUND\r\n", strlen(" 404 NOT FOUND\r\n")) < 0
-        || send_all(ssl, content_type, strlen(content_type)) < 0
-        || send_all(ssl, "\r\n", 2) < 0
-        || send_all(ssl, "\r\n", 2))
-            return -1;
+        send_all(ssl, " 404 NOT FOUND\r\n", strlen(" 404 NOT FOUND\r\n"));
+        send_all(ssl, content_type, strlen(content_type));
+        send_all(ssl, "\r\n", 2);
+        send_all(ssl, "\r\n", 2);
+        return "404 Not Found";
     } else if(header->status == 501) {
-        if(send_all(ssl, not_implemented, strlen(not_implemented))
-        || send_all(ssl, "\r\n", 2) < 0)
-            return -1;
-        return 0;
+        send_all(ssl, not_implemented, strlen(not_implemented));
+        send_all(ssl, "\r\n", 2);
+        return "501 Not Implemented";
     }
 
-    return 1;
+    return NULL;
 }
 
 
@@ -172,10 +151,12 @@ int send_http_response(SSL* ssl,
     }
 
 
-    int send_body = send_response_header(ssl, header, size_read);
+    char *body = send_response_header(ssl, header, size_read);
 
-    if(send_body == 1) {
-        send_local_file(ssl, source, size_read, header);
+    if(body == NULL) {
+        send_all(ssl, source, size_read);
+    } else {
+        send_all(ssl, body, strlen(body));
     }
 
     free(source);
