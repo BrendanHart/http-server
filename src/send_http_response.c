@@ -29,6 +29,7 @@ static int read_local_file(const char *root_dir, const char *file, char **buffer
     FILE *fp = fopen(full_url, "r");
 
     *size = 0;
+    *buffer = NULL;
 
     if(fp == NULL) {
         // File not found
