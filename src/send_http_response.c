@@ -190,10 +190,12 @@ int send_http_response(SSL* ssl,
     // the local file, so check if body is NULL, meaning
     // send_response_header does not request to override the
     // sending of the local file.
-    if(body == NULL) {
-        send_all(ssl, source, size_read);
-    } else {
-        send_all(ssl, body, strlen(body));
+    if(header->method != HEAD) {
+        if(body == NULL) {
+            send_all(ssl, source, size_read);
+        } else {
+            send_all(ssl, body, strlen(body));
+        }
     }
 
     // Free the buffer and return

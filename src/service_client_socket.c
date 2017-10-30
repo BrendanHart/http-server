@@ -11,9 +11,9 @@
 
 static int process_http_header_line(char* buffer, size_t length, http_header *header) {
     printf("%s\n", buffer);
-    header->status = 200;
 
     if(header->resource == NULL) {
+        header->status = 200;
         // No resource in header struct, so this must be the first line.
         // Check for method
         if(length >= 3 && strncmp(buffer, "GET", 3) == 0) {
